@@ -10,6 +10,8 @@ func TestCustomer_Positive(t *testing.T){
 		Email:"Som@pim.com",
 		CustomerID: "L1234567",
 	}
+
+	
 	err:=customer.Validate()
 	g.Expect(err).To(BeNil())
 }
