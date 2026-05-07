@@ -1,6 +1,6 @@
-# 🚀 To-Do List — ENG23 3074
+# 🚀 To-Do-List — ENG23 3074
 
-เว็ป To-Do-List สร้างด้วย Golang และ Node.js containerize ด้วย Docker และ deploy บน Kubernetes ผ่าน Jenkins pipeline แบบอัตโนมัติ
+ระบบ Full-stack Web Application สำหรับจัดการสิ่งที่ต้องทำ สร้างด้วย Golang และ Node.js รันบน Docker และ Deploy ลงบน Kubernetes โดยอัตโนมัติผ่าน Jenkins Pipeline ควบคุม Infrastructure ด้วย Terraform และมีระบบ Monitoring อย่างครบวงจร
 
 ---
 
@@ -25,7 +25,7 @@
   - **Backend:** Golang (Gin Framework)
   - **Frontend:** Node.js (React / Next.js)
   - **Database:** PostgreSQL
-- **คำอธิบาย:** เว็บแอปพลิเคชันสำหรับบันทึกและจัดการรายการสิ่งที่ต้องทำ เพื่อช่วยจัดระเบียบงานในชีวิตประจำวันและป้องกันการลืม โดยตัวระบบถูกออกแบบมาให้ทำงานบน Container และรองรับการทำ CI/CD เต็มรูปแบบ
+- **คำอธิบาย:** เว็บแอปพลิเคชันสำหรับบันทึกและจัดการรายการสิ่งที่ต้องทำ โดยตัวระบบถูกออกแบบให้ทำงานบน Kubernetes Cluster มีระบบ Ingress จัดการ Traffic และมี Monitoring คอยตรวจสอบสถานะของระบบตลอด 24 ชั่วโมง
 
 ### Architecture Diagram
 
@@ -38,25 +38,21 @@
     ┌───────────────────────────────────────┴──────────────────────────────────────┐
     ▼               ▼               ▼               ▼               ▼              ▼
  1.Checkout ──▶ 2.Build ──▶ 3.Test ──▶ 4.Docker Build ──▶ 5.Push Hub ──▶ 6.Deploy
- (Pull Source)  (Install Deps) (Unit Test)   (Create Image)    (Docker Hub)   (Terraform)
+ (Pull Source)  (Install Deps) (Unit Test)   (Create Image)  (Docker Hub)  (Terraform + kubectl)
                                                                     │              │
                                                                     ▼              ▼
                                                                Docker Hub ──▶ Kubernetes
                                                                             (todo-app NS)
                                                                            ┌──────────────┐
-                                                                           │  ┌────────┐  │
-                                                                           │  │  Pod   │  │
-             ┌────────────── Monitoring ──────────────┐                    │  │ [App]  │  │
-             ▼                                        ▼                    │  └────────┘  │
-        Prometheus <───────── Scrape ────────── Backend Pod ───────────────┼──▶ PostgreSQL│
-     (Metrics/Logs)         (/metrics)         (Go Server)                 │   (Database) │
-             │                                        │                    │              │
-             ▼                                        ▼                    │  ┌────────┐  │
-          Grafana <───────── Visualize ───────── Frontend Pod <────────────┼──▶ Service   │
-        (Dashboard)                            (React/Next.js)             │  (NodePort)  │
-                                                                           └──────┬───────┘
-                                                                                  │
-                                                                            User Access
+             ┌────────────── Monitoring ──────────────┐                    │   Ingress    │
+             ▼                                        ▼                    │ (todo.local) │
+        Prometheus <───────── Scrape ────────── Backend Pod ───────────────┼──▶ Pod       │
+     (Metrics/Logs)         (/metrics)         (Go Server)                 │  [Backend]   │
+             │                                        │                    │      │       │
+             ▼                                        ▼                    │      ▼       │
+          Grafana <───────── Visualize ───────── Frontend Pod <────────────┼──▶ PostgreSQL│
+        (Dashboard)                            (React/Next.js)             │  (Database)  │
+                                                                           └──────────────┘
 ```
 
 ---
@@ -65,50 +61,48 @@
 
 ```text
 To-Do-List/
-├── backend/                # ส่วนของ API (Golang)
-│   ├── config/             # การตั้งค่าฐานข้อมูลและระบบ (db.go, seed)
-│   ├── internal/           # Business Logic หลักของระบบ
-│   │   ├── app/            # ประกอบด้วย Controller, DTO, Entity, Repository
-│   │   ├── middlewares/    # ส่วนจัดการ Request (เช่น CORS)
-│   │   ├── routes/         # ส่วนกำหนดเส้นทาง API (Endpoints)
-│   │   └── service/        # ส่วนจัดการ Logic การทำงาน (Task Service)
-│   ├── Dockerfile          # สำหรับสร้าง Backend Image
-│   ├── main.go             # Entry point ของแอปพลิเคชัน
-│   └── go.mod              # ไฟล์จัดการ dependencies ของ Go
-├── frontend/               # ส่วนของ UI (Node.js/React)
-│   ├── app.js              # โค้ดหลักของ Frontend
-│   ├── Dockerfile          # สำหรับสร้าง Image ของ Frontend
-│   └── package.json        # ไฟล์จัดการ dependencies ของ Node.js
-├── k8s/                    # Kubernetes Manifests
-│   ├── backend/            # Deployment, Service และ Postgres ของหลังบ้าน
-│   ├── frontend/           # Deployment และ Service ของหน้าบ้าน
-│   └── monitoring/         # การตั้งค่า Monitoring สำหรับ K8s
-├── prometheus/             # ไฟล์ตั้งค่าระบบเก็บ Metrics (Prometheus Config)
-├── terraform/              # ไฟล์ Infrastructure as Code (Backend, DB, Ingress)
-├── docker-compose.yml      # สำหรับรันระบบทั้งหมดพร้อมกันในเครื่อง (Local)
-├── Jenkinsfile             # ไฟล์กำหนด Automation Pipeline (CI/CD)
-└── README.md
+├── backend/                  # ส่วนของ API (Golang)
+│   ├── internal/             # Business Logic หลักของระบบ
+│   ├── Dockerfile            # สำหรับสร้าง Backend Image
+│   ├── go.mod                # ไฟล์จัดการ dependencies ของ Go
+│   └── main.go               # Entry point ของแอปพลิเคชัน
+├── frontend/                 # ส่วนของ UI (Node.js/React)
+│   ├── app.js                # โค้ดหลักของ Frontend
+│   ├── Dockerfile            # สำหรับสร้าง Image ของ Frontend
+│   └── package.json          # ไฟล์จัดการ dependencies ของ Node.js
+├── grafana-data/             # ที่เก็บข้อมูลของ Grafana (Local volume)
+├── k8s/                      # Kubernetes Manifests
+│   ├── backend/              # แฟ้มเก็บไฟล์ K8s ของ backend
+│   ├── frontend/             # แฟ้มเก็บไฟล์ K8s ของ frontend
+│   └── monitoring/           # แฟ้มเก็บไฟล์ K8s สำหรับ Monitoring
+├── prometheus/               # ไฟล์ตั้งค่าระบบ Monitoring
+│   ├── alert_rules.yml       # กฎการแจ้งเตือน (Alerting Rules)
+│   └── prometheus.yml        # การตั้งค่า Scrape targets
+├── prometheus-data/          # ที่เก็บข้อมูล Time-series ของ Prometheus
+├── terraform/                # Infrastructure as Code (จัดการ Resource บน Kubernetes)
+│   ├── backend.tf            # จัดการ Deployment/Service ของ Backend
+│   ├── database.tf           # จัดการ Deployment/Service/Secret ของ PostgreSQL
+│   ├── frontend.tf           # จัดการ Deployment/Service ของ Frontend
+│   ├── ingress.tf            # กำหนด Ingress Rules และ Domain Routing
+│   ├── main.tf               # กำหนด Namespace และทรัพยากรหลัก
+│   └── variables.tf          # กำหนดตัวแปร (เช่น image_tag, db_password)
+├── docker-compose.yml        # สำหรับรันระบบทดสอบในเครื่อง (Local)
+└── Jenkinsfile               # ไฟล์กำหนด Automation Pipeline (CI/CD)
 ```
 
 ---
 
 ## ⚙️ สิ่งที่ต้องติดตั้งก่อน (Prerequisites)
 
-ตรวจสอบให้แน่ใจว่าติดตั้งเครื่องมือเหล่านี้ครบถ้วนก่อนเริ่มรันโปรเจค เพื่อให้สภาพแวดล้อมตรงกับที่ใช้พัฒนา
-
 | Tool | Version (Tested) | หน้าที่ |
 |---|---|---|
-| **Git** | 2.50.x | จัดการ Source Code และ Version Control |
-| **Go** | 1.24.x | รันและ Build ระบบ Backend API |
-| **Node.js** | v22.17.x | รันและ Build ระบบ Frontend UI |
-| **Docker** | 28.5.x | สร้างและจัดการ Container ของแอปพลิเคชัน |
-| **Terraform** | 1.14.x | สร้างและจัดการ Infrastructure (IaC) |
-| **kubectl** | v1.34.x | คำสั่งควบคุมและสั่งการ Kubernetes Cluster |
-| **Jenkins** | ≥ 2.4xx | ระบบ CI/CD Automation สำหรับ Build และ Deploy |
-| **Ansible** | ≥ 2.15 | ตั้งค่าระบบและจัดการ Configuration ของ Server |
-| **Minikube / K3s** | Latest | ระบบ Kubernetes จำลองสำหรับรันในเครื่อง Local |
-| **Prometheus** | Latest | ระบบเก็บข้อมูล Metrics และตรวจสอบสถานะระบบ |
-| **Grafana** | Latest | ระบบแสดงผล Dashboard และ Visualize ข้อมูล |
+| **Git** | ≥ 2.x | จัดการ Source Code |
+| **Docker** | ≥ 24.x | สร้างและจัดการ Container |
+| **Jenkins** | ≥ 2.4xx | ระบบ CI/CD Automation |
+| **Terraform** | ≥ 1.x | Provision Infrastructure บน Kubernetes |
+| **kubectl** | ≥ 1.28 | สั่งงาน Kubernetes Cluster |
+| **Prometheus** | Latest | เก็บ Metrics ของระบบ |
+| **Grafana** | ≥ 10.x | แสดงผล Dashboard |
 
 ---
 
@@ -160,152 +154,65 @@ docker build -t [username]/todo-frontend:latest ./frontend
 
 ## 🔄 CI/CD Pipeline (Jenkins)
 
-### ลำดับการทำงานของ Pipeline
-
-```text
-Checkout ──▶ Build ──▶ Test ──▶ Docker Build ──▶ Push to Hub ──▶ Deploy
-```
+ไปป์ไลน์จะเริ่มทำงานอัตโนมัติเมื่อมีการ Push ไปที่ Branch `main`
 
 | Stage | คำอธิบาย |
 |---|---|
-| **Checkout** | ดึงโค้ดล่าสุดจาก GitHub |
-| **Build** | ติดตั้ง dependencies |
-| **Test** | รัน unit test |
-| **Docker Build** | สร้าง Docker image |
-| **Push to Hub** | อัปโหลด image ขึ้น Docker Hub |
-| **Deploy** | รัน Terraform + Ansible แล้ว apply Kubernetes manifests |
-
-### วิธีตั้งค่า Jenkins
-
-1. ติดตั้ง Jenkins และเปิดที่ `http://localhost:8080`
-2. ติดตั้ง plugin: **Git**, **Pipeline**, **Docker Pipeline**
-3. เพิ่ม credentials สำหรับ Docker Hub (ชื่อ `dockerhub-credentials`)
-4. สร้าง Pipeline job ใหม่ และชี้ไปที่ repository นี้
-5. ตั้งค่า Webhook ใน GitHub:
-   - ไปที่ **Settings → Webhooks → Add webhook**
-   - Payload URL: `http://[jenkins-host]:8080/github-webhook/`
-   - Content type: `application/json`
-   - ติ๊ก trigger: **Just the push event**
+| **1. Checkout** | ดึงโค้ดล่าสุดจาก GitHub |
+| **2. Build & Test** | เตรียมเวอร์ชันแอปพลิเคชัน (Image Tag) |
+| **3. Docker Build** | สร้าง Image: Frontend และ Backend |
+| **4. Test Images** | ตรวจสอบว่า Container รันได้เบื้องต้น |
+| **5. Push Hub** | อัปโหลด Image ไปยัง Docker Hub (`nattasitfluk/todo-*`) |
+| **6. Deploy** | รัน Terraform เพื่อ Update K8s Resources และ Ingress |
 
 ---
 
-## 🏗️ Infrastructure as Code
+## 🏗️ Infrastructure as Code (Terraform)
 
-### Terraform — Provision Infrastructure
+โปรเจคนี้ใช้ Terraform ในการจัดการทรัพยากรบน Kubernetes โดยแบ่งไฟล์ออกเป็นสัดส่วน (Modular):
+
+- **Database:** สร้าง PostgreSQL Pod พร้อมใช้งาน `Secret` เก็บ Password
+- **Backend/Frontend:** จัดการ Deployment (2 Replicas) และ Services
+- **Ingress:** จัดการเส้นทางผ่าน `todo.local` เพื่อแยก Traffic ระหว่าง UI, API และ Monitoring
+
+### คำสั่งที่ต้องใช้
 
 ```bash
 cd terraform
 terraform init      # ดาวน์โหลด provider plugins
 terraform plan      # ตรวจสอบว่าจะสร้างอะไรบ้าง
-terraform apply     # สร้าง resource จริง
+terraform apply     # สร้าง resource จริงบน Kubernetes
 ```
-
-> สิ่งที่ Terraform สร้าง: Docker network, Kubernetes namespace, local directory
 
 ---
 
-## ☸️ Kubernetes Deployment
+## ☸️ Kubernetes & Ingress
 
-### Apply Manifests ด้วยตัวเอง
-
-```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-```
-
-### ตรวจสอบสถานะ
-
-```bash
-kubectl get pods -n [namespace]
-kubectl get svc  -n [namespace]
-```
-
-### ผลลัพธ์ที่ควรจะได้
+ตั้งค่าไฟล์ `/etc/hosts` (Linux/Mac) หรือ `C:\Windows\System32\drivers\etc\hosts` (Windows):
 
 ```text
-NAME                        READY   STATUS    RESTARTS   AGE
-[app-name]-xxxxxxxxx-xxxxx  1/1     Running   0          2m
-[app-name]-xxxxxxxxx-yyyyy  1/1     Running   0          2m
-
-NAME            TYPE       CLUSTER-IP     PORT(S)          AGE
-[app-name]-svc  NodePort   10.96.xx.xxx   5000:30080/TCP   2m
+[K8s_NODE_IP] todo.local
 ```
-
-### การเข้าถึงแอปพลิเคชัน
-
-เนื่องจากระบบมีการใช้ Ingress Controller เพื่อจัดการเส้นทาง (Routing) คุณสามารถเข้าถึงบริการต่างๆ ผ่าน Domain Name ได้ดังนี้:
 
 | บริการ | URL สำหรับเข้าใช้งาน |
 |---|---|
-| **Frontend UI** | http://todo.local |
-| **Grafana Dashboard** | http://todo.local/grafana |
-| **Prometheus UI** | http://todo.local/prometheus |
-
-### การตั้งค่าเพิ่มเติมสำหรับเครื่อง Local
-
-เพื่อให้เครื่องของคุณรู้จักชื่อ `todo.local` คุณจำเป็นต้องเพิ่ม IP ของ Kubernetes Cluster ลงในไฟล์ hosts ของเครื่องคุณก่อน:
-
-```bash
-# ตรวจสอบ IP ของ Ingress
-kubectl get ingress -n todo-app
-```
-
-แล้วเพิ่มบรรทัดนี้ในไฟล์ `/etc/hosts` (Linux/Mac) หรือ `C:\Windows\System32\drivers\etc\hosts` (Windows):
-
-```text
-[K8s_NODE_IP]  todo.local
-```
+| **Web UI** | http://todo.local/ |
+| **Prometheus** | http://todo.local/prometheus |
+| **Grafana** | http://todo.local/grafana |
 
 ---
 
 ## 📊 Monitoring
 
-### Prometheus — เก็บ Metrics
+### Alerting (`alert_rules.yml`)
 
-- ไฟล์ config: `monitoring/prometheus.yml`
-- Scrape ทุก 15 วินาที
-- Target endpoint: `http://[app-host]:[port]/metrics`
+1. **InstanceDown** — แจ้งเตือนหาก Service ล่มนานกว่า 1 นาที
+2. **HighErrorRate** — แจ้งเตือนหาก Backend ตอบกลับเป็น Error 5xx เกิน 5%
 
-```bash
-prometheus --config.file=monitoring/prometheus.yml
-# เปิด UI ที่ http://localhost:9090
-```
+### Dashboard (Grafana)
 
-### Grafana — แสดง Dashboard
-
-- ไฟล์ dashboard: `monitoring/grafana-dashboard.json`
-- Data source: Prometheus (`http://localhost:9090`)
-
-**วิธี import dashboard:**
-
-1. เปิด Grafana ที่ `http://localhost:3000`
-2. ไปที่ **Dashboards → Import**
-3. อัปโหลดไฟล์ `grafana-dashboard.json`
-
-### Panels ใน Dashboard
-
-| Panel | Metric (PromQL) | แสดงข้อมูลอะไร |
-|---|---|---|
-| Request Rate | `rate(http_requests_total[1m])` | จำนวน request ต่อวินาที |
-| Error Rate | `rate(http_requests_total{status=~"5.."}[1m])` | จำนวน error 5xx ต่อวินาที |
-| Latency (p95) | `histogram_quantile(0.95, ...)` | response time ที่ percentile 95 |
-| Pod Health | `up{job="[app-name]"}` | service ขึ้นหรือล่ม (1/0) |
-
----
-
-## 🌿 Branching Strategy
-
-```text
-main        ──── โค้ดที่พร้อม production, protected branch
-dev         ──── รวมโค้ดก่อน merge ขึ้น main
-feature/*   ──── พัฒนา feature แต่ละอัน (เช่น feature/add-login)
-```
-
-| Branch | Protected | คำอธิบาย |
-|---|---|---|
-| `main` | ✅ | trigger pipeline อัตโนมัติเมื่อ merge |
-| `dev` | ✅ | ทดสอบก่อน merge ขึ้น main |
-| `feature/*` | ❌ | พัฒนาแยกกันแล้วค่อย merge เข้า dev |
+- **Username / Password:** `admin` / `admin`
+- แสดงข้อมูล: Request Rate, Error Rate, Pod Health และ Latency
 
 ---
 
@@ -313,12 +220,11 @@ feature/*   ──── พัฒนา feature แต่ละอัน (เ�
 
 | Method | Endpoint | คำอธิบาย |
 |---|---|---|
-| `GET` | `/` | Health check — ตรวจว่าแอปยังรันอยู่ |
-| `GET` | `/metrics` | สำหรับให้ Prometheus มาดึงข้อมูล (Scrape) metrics |
-| `GET` | `/api/v1/tasks` | ดึงรายการ To-do ทั้งหมดจากฐานข้อมูล |
-| `POST` | `/api/v1/tasks` | สร้างรายการ To-do ใหม่ |
-| `PATCH` | `/api/v1/tasks/:id/toggle` | สลับสถานะการทำงาน (ทำแล้ว/ยังไม่ได้ทำ) ตาม ID |
-| `DELETE` | `/api/v1/tasks/:id` | ลบรายการ To-do ที่ระบุตาม ID |
+| `GET` | `/api/v1/tasks` | ดึงรายการงานทั้งหมด |
+| `POST` | `/api/v1/tasks` | เพิ่มงานใหม่ |
+| `PATCH` | `/api/v1/tasks/:id/toggle` | สลับสถานะงาน (Done/Todo) |
+| `DELETE` | `/api/v1/tasks/:id` | ลบงานออก |
+| `GET` | `/metrics` | ข้อมูล Metrics สำหรับ Prometheus |
 
 ---
 
@@ -327,41 +233,38 @@ feature/*   ──── พัฒนา feature แต่ละอัน (เ�
 ### Pods ค้างอยู่ที่ Pending ไม่ยอม Running
 
 ```bash
-kubectl describe pod [pod-name] -n [namespace]
-# ดูที่ Events: อาจเกิดจาก resource ไม่พอ หรือ image pull error
+kubectl describe pod [pod-name] -n todo-app
+# ดูที่ Events: อาจเกิดจาก Resource บน Node ไม่พอ หรือเกิด Error ตอน Pull Image
 ```
 
-### Jenkins pipeline ล้มเหลวตอน Docker Build
+### Jenkins Pipeline ล้มเหลวตอน Docker Build
 
 ```bash
-# ตรวจว่า Docker daemon รันอยู่
+# ตรวจสอบว่า Docker daemon รันอยู่หรือไม่
 sudo systemctl start docker
 
-# เพิ่ม jenkins user เข้า docker group
+# ตรวจสอบสิทธิ์ของ Jenkins user
 sudo usermod -aG docker jenkins
 ```
 
-### Prometheus แสดง target เป็น DOWN
+### Prometheus แสดง Target เป็น DOWN
 
 ```bash
-# ตรวจว่าแอปเปิด /metrics ได้จริง
-curl http://localhost:5000/metrics
+# ตรวจสอบว่าแอปเปิด /metrics ได้จริงหรือไม่
+curl http://localhost:8080/metrics
 
-# ตรวจ prometheus.yml ว่า host:port ตรงกับแอปจริง
+# ตรวจสอบไฟล์ prometheus.yml ว่าตั้งค่า host:port ตรงกับ Service จริงหรือไม่
 ```
 
 ---
 
 ## 📚 เอกสารอ้างอิง
 
-- [Jenkinsfile Declarative Pipeline Syntax](https://www.jenkins.io/doc/book/pipeline/syntax/)
-- [Terraform Documentation](https://developer.hashicorp.com/terraform/docs)
-- [Ansible Documentation](https://docs.ansible.com/)
+- [Jenkins Pipeline Syntax](https://www.jenkins.io/doc/book/pipeline/syntax/)
+- [Terraform Kubernetes Provider](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [Prometheus Documentation](https://prometheus.io/docs/)
 - [Grafana Documentation](https://grafana.com/docs/)
-- [Markdown Guide](https://www.markdownguide.org/)
-- [GitHub Markdown Syntax](https://docs.github.com/en/get-started/writing-on-github)
 
 ---
 
