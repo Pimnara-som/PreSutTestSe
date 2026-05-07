@@ -7,7 +7,7 @@
 ## 👥 สมาชิกในกลุ่ม
 
 | รหัสนักศึกษา | ชื่อ-นามสกุล | ความรับผิดชอบ |
-|-------------|-------------|---------------|
+|---|---|---|
 | B6608019 | นาวสาวเนตรนภัทร ชำนินอก | Git, App Development |
 | B6609023 | นายณัฐสิทธิ์ มามั่น | Jenkins, Docker |
 | B6639334 | นางสาวพิมพ์นารา อดุลจันทรศร | Terraform |
@@ -18,9 +18,11 @@
 ## 📌 ภาพรวมโปรเจค
 
 ### แอปพลิเคชัน
+
 - **ชื่อ:** To-Do-List ENG23
 - **ประเภท:** Full-stack Web Application (Microservices Architecture)
-- **ภาษา / Framework:** - **Backend:** Golang (Gin Framework)
+- **ภาษา / Framework:**
+  - **Backend:** Golang (Gin Framework)
   - **Frontend:** Node.js (React / Next.js)
   - **Database:** PostgreSQL
 - **คำอธิบาย:** เว็บแอปพลิเคชันสำหรับบันทึกและจัดการรายการสิ่งที่ต้องทำ โดยตัวระบบถูกออกแบบให้ทำงานบน Kubernetes Cluster มีระบบ Ingress จัดการ Traffic และมี Monitoring คอยตรวจสอบสถานะของระบบตลอด 24 ชั่วโมง
@@ -28,7 +30,7 @@
 ### Architecture Diagram
 
 ```text
-        Developer 
+        Developer
              │
              ▼  git push
           GitHub ────── Webhook ───────▶ Jenkins (CI/CD Pipeline)
@@ -36,7 +38,7 @@
     ┌───────────────────────────────────────┴──────────────────────────────────────┐
     ▼               ▼               ▼               ▼               ▼              ▼
  1.Checkout ──▶ 2.Build ──▶ 3.Test ──▶ 4.Docker Build ──▶ 5.Push Hub ──▶ 6.Deploy
- (Pull Source)  (Install Deps) (Unit Test)   (Create Image)    (Docker Hub)   (Terraform + kubectl)
+ (Pull Source)  (Install Deps) (Unit Test)   (Create Image)  (Docker Hub)  (Terraform + kubectl)
                                                                     │              │
                                                                     ▼              ▼
                                                                Docker Hub ──▶ Kubernetes
@@ -51,6 +53,8 @@
           Grafana <───────── Visualize ───────── Frontend Pod <────────────┼──▶ PostgreSQL│
         (Dashboard)                            (React/Next.js)             │  (Database)  │
                                                                            └──────────────┘
+```
+
 ---
 
 ## 📁 โครงสร้าง Repository
@@ -84,11 +88,14 @@ To-Do-List/
 │   └── variables.tf          # กำหนดตัวแปร (เช่น image_tag, db_password)
 ├── docker-compose.yml        # สำหรับรันระบบทดสอบในเครื่อง (Local)
 └── Jenkinsfile               # ไฟล์กำหนด Automation Pipeline (CI/CD)
+```
+
+---
 
 ## ⚙️ สิ่งที่ต้องติดตั้งก่อน (Prerequisites)
 
 | Tool | Version (Tested) | หน้าที่ |
-|------|------------------|---------|
+|---|---|---|
 | **Git** | ≥ 2.x | จัดการ Source Code |
 | **Docker** | ≥ 24.x | สร้างและจัดการ Container |
 | **Jenkins** | ≥ 2.4xx | ระบบ CI/CD Automation |
@@ -102,28 +109,33 @@ To-Do-List/
 ## 🏃 วิธีรันโปรเจค (Quick Start)
 
 ### 1. Clone Repository
+
 ```bash
-git clone [https://github.com/Netnaphat0305/To-Do-List.git](https://github.com/Netnaphat0305/To-Do-List.git)
+git clone https://github.com/Netnaphat0305/To-Do-List.git
 cd To-Do-List
 ```
 
 ### 2. รันแอปพลิเคชันด้วย Docker Compose (Local)
+
 ```bash
 docker-compose up -d --build
 ```
-* **Frontend:** `http://localhost:[FRONTEND_PORT]`
-* **Backend API:** `http://localhost:8080`
-* **Prometheus:** `http://localhost:9090`
-* **Grafana:** `http://localhost:4000`
+
+| บริการ | URL |
+|---|---|
+| **Frontend** | `http://localhost:[FRONTEND_PORT]` |
+| **Backend API** | `http://localhost:8080` |
+| **Prometheus** | `http://localhost:9090` |
+| **Grafana** | `http://localhost:4000` |
 
 ---
 
 ## 🔄 CI/CD Pipeline (Jenkins)
 
-ไปป์ไลน์จะเริ่มทำงานอัตโนมัติเมื่อมีการ Push ไปที่ Branch `main`:
+ไปป์ไลน์จะเริ่มทำงานอัตโนมัติเมื่อมีการ Push ไปที่ Branch `main`
 
 | Stage | คำอธิบาย |
-|-------|----------|
+|---|---|
 | **1. Checkout** | ดึงโค้ดล่าสุดจาก GitHub |
 | **2. Build & Test** | เตรียมเวอร์ชันแอปพลิเคชัน (Image Tag) |
 | **3. Docker Build** | สร้าง Image: Frontend และ Backend |
@@ -136,40 +148,48 @@ docker-compose up -d --build
 ## 🏗️ Infrastructure as Code (Terraform)
 
 โปรเจคนี้ใช้ Terraform ในการจัดการทรัพยากรบน Kubernetes โดยแบ่งไฟล์ออกเป็นสัดส่วน (Modular):
+
 - **Database:** สร้าง PostgreSQL Pod พร้อมใช้งาน `Secret` เก็บ Password
 - **Backend/Frontend:** จัดการ Deployment (2 Replicas) และ Services
 - **Ingress:** จัดการเส้นทางผ่าน `todo.local` เพื่อแยก Traffic ระหว่าง UI, API และ Monitoring
 
-คำสั่งที่ต้องใช้
+### คำสั่งที่ต้องใช้
+
+```bash
 cd terraform
 terraform init      # ดาวน์โหลด provider plugins
 terraform plan      # ตรวจสอบว่าจะสร้างอะไรบ้าง
 terraform apply     # สร้าง resource จริงบน Kubernetes
+```
+
 ---
 
 ## ☸️ Kubernetes & Ingress
 
-ตั้งค่าไฟล์ `/etc/hosts` (สำหรับ Linux/Mac) หรือ `C:\Windows\System32\drivers\etc\hosts` (สำหรับ Windows) ของคุณ:
+ตั้งค่าไฟล์ `/etc/hosts` (Linux/Mac) หรือ `C:\Windows\System32\drivers\etc\hosts` (Windows):
+
 ```text
 [K8s_NODE_IP] todo.local
 ```
 
 | บริการ | URL สำหรับเข้าใช้งาน |
-|------|--------------------|
-| **Web UI** | [http://todo.local/](http://todo.local/) |
-| **Prometheus** | [http://todo.local/prometheus](http://todo.local/prometheus) |
-| **Grafana** | [http://todo.local/grafana](http://todo.local/grafana) |
+|---|---|
+| **Web UI** | http://todo.local/ |
+| **Prometheus** | http://todo.local/prometheus |
+| **Grafana** | http://todo.local/grafana |
 
 ---
 
 ## 📊 Monitoring
 
 ### Alerting (`alert_rules.yml`)
-1. **InstanceDown:** แจ้งเตือนหาก Service ล่มนานกว่า 1 นาที
-2. **HighErrorRate:** แจ้งเตือนหาก Backend ตอบกลับเป็น Error 5xx เกิน 5%
+
+1. **InstanceDown** — แจ้งเตือนหาก Service ล่มนานกว่า 1 นาที
+2. **HighErrorRate** — แจ้งเตือนหาก Backend ตอบกลับเป็น Error 5xx เกิน 5%
 
 ### Dashboard (Grafana)
-- **ID/PW:** `admin` / `admin`
+
+- **Username / Password:** `admin` / `admin`
 - แสดงข้อมูล: Request Rate, Error Rate, Pod Health และ Latency
 
 ---
@@ -177,7 +197,7 @@ terraform apply     # สร้าง resource จริงบน Kubernetes
 ## 🧪 API Endpoints
 
 | Method | Endpoint | คำอธิบาย |
-|--------|----------|----------|
+|---|---|---|
 | `GET` | `/api/v1/tasks` | ดึงรายการงานทั้งหมด |
 | `POST` | `/api/v1/tasks` | เพิ่มงานใหม่ |
 | `PATCH` | `/api/v1/tasks/:id/toggle` | สลับสถานะงาน (Done/Todo) |
@@ -185,37 +205,46 @@ terraform apply     # สร้าง resource จริงบน Kubernetes
 | `GET` | `/metrics` | ข้อมูล Metrics สำหรับ Prometheus |
 
 ---
-🐛 ปัญหาที่พบบ่อย (Troubleshooting)
-Pods ค้างอยู่ที่ Pending ไม่ยอม Running
 
-Bash
+## 🐛 ปัญหาที่พบบ่อย (Troubleshooting)
+
+### Pods ค้างอยู่ที่ Pending ไม่ยอม Running
+
+```bash
 kubectl describe pod [pod-name] -n todo-app
 # ดูที่ Events: อาจเกิดจาก Resource บน Node ไม่พอ หรือเกิด Error ตอน Pull Image
+```
 
-Jenkins Pipeline ล้มเหลวตอน Docker Build
+### Jenkins Pipeline ล้มเหลวตอน Docker Build
 
-Bash
+```bash
 # ตรวจสอบว่า Docker daemon รันอยู่หรือไม่
 sudo systemctl start docker
+
 # ตรวจสอบสิทธิ์ของ Jenkins user
 sudo usermod -aG docker jenkins
-Prometheus แสดง Target เป็น DOWN
+```
 
-Bash
-# ตรวจสอบว่าแอปเปิด / metrics ได้จริงหรือไม่
+### Prometheus แสดง Target เป็น DOWN
+
+```bash
+# ตรวจสอบว่าแอปเปิด /metrics ได้จริงหรือไม่
 curl http://localhost:8080/metrics
+
 # ตรวจสอบไฟล์ prometheus.yml ว่าตั้งค่า host:port ตรงกับ Service จริงหรือไม่
+```
 
-📚 เอกสารอ้างอิง
-Jenkins Pipeline Syntax
+---
 
-Terraform K8s Provider
+## 📚 เอกสารอ้างอิง
 
-Kubernetes Documentation
+- [Jenkins Pipeline Syntax](https://www.jenkins.io/doc/book/pipeline/syntax/)
+- [Terraform Kubernetes Provider](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+- [Prometheus Documentation](https://prometheus.io/docs/)
+- [Grafana Documentation](https://grafana.com/docs/)
 
-Prometheus Documentation
-
-Grafana Documentation
+---
 
 ## 📄 ข้อมูลการส่งงาน
 
