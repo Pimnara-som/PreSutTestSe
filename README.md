@@ -62,6 +62,7 @@
 ```text
 To-Do-List/
 ├── backend/                  # ส่วนของ API (Golang)
+│   ├── config/               # แฟ้มเก็บไฟล์การตั้งค่า (Configuration) และตัวแปรต่างๆ ของระบบ
 │   ├── internal/             # Business Logic หลักของระบบ
 │   ├── Dockerfile            # สำหรับสร้าง Backend Image
 │   ├── go.mod                # ไฟล์จัดการ dependencies ของ Go
